@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abitur-Rechner BaWü | Zeugnisprognose</title>
+    
+    <!-- Professionelle PDF Generation (jsPDF & AutoTable) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        /* --- THEME VARIABLES --- */
+        :root[data-theme="light"] {
+            --bg: #F8FAFC; --surface: #FFFFFF; --text: #111827; --text-light: #6B7280;
+            --border: #E5E7EB; --primary: #FFB800; --primary-dark: #D99C00;
+            --primary-text: #000000; --accent: #000000; --accent-text: #FFFFFF;
+            --success-bg: #DCFCE7; --success-text: #166534; --warning-bg: #FEF9C3; --warning-text: #854D0E;
+            --danger-bg: #FEE2E2; --danger-text: #991B1B; --input-bg: #F9FAFB;
+        }
+
+        :root[data-theme="dark"] {
+            --bg: #0F172A; --surface: #1E293B; --text: #F8FAFC; --text-light: #94A3B8;
+            --border: #334155; --primary: #FFB800; --primary-dark: #FFCC33;
+            --primary-text: #000000; --accent: #F8FAFC; --accent-text: #0F172A;
+            --success-bg: #064E3B; --success-text: #34D399; --warning-bg: #78350F; --warning-text: #FBBF24;
+            --danger-bg: #7F1D1D; --danger-text: #F87171; --input-bg: #0F172A;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; transition: background-color 0.3s, color 0.3s; }
+        body { background: var(--bg); color: var(--text); padding: 20px; line-height: 1.5; }
+
+        .header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px; flex-wrap: wrap; gap: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 15px;}
+        .header h1 { font-size: 1.8rem; display: flex; align-items: center; gap: 10px;}
+        
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; align-items: center;}
+        button { padding: 8px 14px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.9rem;}
+        
+        .btn-theme { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+        .btn-action { background: var(--primary); color: var(--primary-text); }
+        .btn-action:hover { background: var(--primary-dark); }
+        .btn-print { background: var(--accent); color: var(--accent-text); }
+        .btn-clear { background: var(--danger-bg); color: var(--danger-text); border: 1px solid var(--danger-text); }
+
+        .grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        @media(min-width: 1200px) { .grid { grid-template-columns: 1.3fr 1fr; } }
+        
+        .card { background: var(--surface); border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid var(--border); }
+        .card h2 { font-size: 1.2rem; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;}
+        
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 650px; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        th { font-size: 0.85rem; text-transform: uppercase; color: var(--text-light); }
+        
+        input[type="text"], input[type="number"], select { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 5px; background: var(--input-bg); color: var(--text); }
+        input:focus, select:focus { outline: 2px solid var(--primary); border-color: var(--primary); }
+        
+        .grade-cell { display: flex; align-items: center; gap: 6px; }
+        .grade-cell input[type="number"] { width: 55px; text-align: center; font-weight: bold;}
+        .grade-cell input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
+        
+        .btn-add { width: 100%; padding: 12px; margin-top: 10px; background: none; border: 2px dashed var(--border); color: var(--text-light); border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .btn-del { background: none; border: none; color: var(--danger-text); cursor: pointer; font-size: 1.2rem; }
+
+        .personal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 10px; }
+
+        .result-box { text-align: center; padding: 20px; border-radius: 8px; background: var(--input-bg); margin-bottom: 20px; border: 1px solid var(--border);}
+        .result-grade { font-size: 4rem; font-weight: bold; line-height: 1; margin: 15px 0; }
+        .result-stats { display: flex; justify-content: space-around; font-size: 1.1rem; color: var(--text); font-weight: 500; }
+        
+        .validation-list { list-style: none; font-size: 0.9rem; }
+        .validation-list li { padding: 8px 12px; margin-bottom: 6px; border-radius: 5px; background: var(--success-bg); color: var(--success-text); border: 1px solid currentColor;}
+        .validation-list li.error { background: var(--danger-bg); color: var(--danger-text); }
+        .validation-list li.muss { background: var(--warning-bg); color: var(--warning-text); font-weight: bold;}
+        
+        .badge { font-size: 0.75rem; padding: 3px 6px; border-radius: 4px; font-weight: bold; display: inline-block; margin-top: 5px;}
+        .badge-2x { background: var(--primary); color: var(--primary-text); }
+        .badge-1x { background: var(--border); color: var(--text-light); }
+        
+        .slider-container { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; background: var(--surface); padding: 10px; border-radius: 8px; border: 1px solid var(--border);}
+        input[type="range"] { flex-grow: 1; accent-color: var(--primary); cursor: pointer; }
+        .target-val { font-size: 1.5rem; font-weight: bold; color: var(--primary); width: 60px; text-align: center;}
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            <h1><span style="color: var(--primary);">Baden-Württemberg</span> Abitur-Rechner</h1>
+            <p>AGVO 2026 • Günstigerprüfung & PDF-Zeugnisgenerator</p>
+        </div>
+        <div class="btn-group">
+            <input type="file" id="import-file" accept=".json" style="display: none;" onchange="importData(event)">
+            <button class="btn-action" onclick="document.getElementById('import-file').click()">📂 Import</button>
+            <button class="btn-action" onclick="exportData()">💾 Export</button>
+            <button class="btn-theme" onclick="toggleTheme()" id="theme-btn">🌙 Nachtmodus</button>
+            <button class="btn-print" onclick="generatePerfectPDF()">🖨️ PDF-Zeugnis drucken</button>
+            <button class="btn-clear" onclick="clearAll()">🗑️ Reset</button>
+        </div>
+    </div>
+
+    <div class="card" style="border-left: 4px solid var(--primary);">
+        <h2 style="border:none; padding:0; margin-bottom: 10px; font-size: 1rem;">👤 Schülerdaten (Für das PDF-Zeugnis)</h2>
+        <div class="personal-grid">
+            <div><label style="font-size:0.85rem; color:var(--text-light);">Vor- und Zuname</label><input type="text" id="pd-name" placeholder="Jill Manuel Hills" onchange="saveData()"></div>
+            <div><label style="font-size:0.85rem; color:var(--text-light);">Geboren am</label><input type="text" id="pd-dob" placeholder="13.02.2008" onchange="saveData()"></div>
+            <div><label style="font-size:0.85rem; color:var(--text-light);">Geboren in</label><input type="text" id="pd-pob" placeholder="Villingen-Schwenningen" onchange="saveData()"></div>
+            <div><label style="font-size:0.85rem; color:var(--text-light);">Wohnort (Für Datum unten)</label><input type="text" id="pd-city" placeholder="Villingen-Schwenningen" onchange="saveData()"></div>
+            <div><label style="font-size:0.85rem; color:var(--text-light);">Name der Schule</label><input type="text" id="pd-school" placeholder="St. Ursula Gymnasium Villingen" onchange="saveData()"></div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="column">
+            <div class="card">
+                <h2>Block II: Abiturprüfungen <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-light)">Formel: (2s + m)/3</span></h2>
+                <div class="table-responsive">
+                    <table id="table-block2">
+                        <thead>
+                            <tr>
+                                <th>Fach</th>
+                                <th>Art</th>
+                                <th>Schriftlich/<br>Mündlich</th>
+                                <th title="Nur bei schriftlichen Prüfungen">Zusatzprüfung<br>(mündlich)</th>
+                                <th>Punkte<br>(x4)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="body-block2"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>
+                    <span>Block I: Kursleistungen</span>
+                    <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-light)" id="course-counter">0 / 40 Kurse</span>
+                </h2>
+                <div class="table-responsive">
+                    <table id="table-block1">
+                        <thead>
+                            <tr>
+                                <th>Fach / Typ</th>
+                                <th>HJ 1</th>
+                                <th>HJ 2</th>
+                                <th>HJ 3</th>
+                                <th>HJ 4</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="body-block1"></tbody>
+                    </table>
+                </div>
+                <button class="btn-add" onclick="addSubject()">+ Fach hinzufügen</button>
+            </div>
+        </div>
+
+        <div class="column">
+            <div class="card">
+                <h2>Gesamtergebnis</h2>
+                <div class="result-box">
+                    <div class="result-stats">
+                        <span>Block I:<br><b id="res-b1" style="font-size: 1.5rem; color: var(--primary);">0</b><br><small>/ 600</small></span>
+                        <span>Block II:<br><b id="res-b2" style="font-size: 1.5rem; color: var(--primary);">0</b><br><small>/ 300</small></span>
+                    </div>
+                    <div style="margin-top: 20px; font-size: 0.9rem; color: var(--text-light)">Voraussichtliche Abiturnote</div>
+                    <div class="result-grade" id="final-grade">-.-</div>
+                    <div style="font-size: 0.9rem; color: var(--text-light)">Punkte: <span id="res-total">0</span> / 900</div>
+                </div>
+            </div>
+
+            <div class="card prognosis" style="border: 2px solid var(--primary);">
+                <h2 style="border: none; padding: 0; margin-bottom: 10px;">🎯 Zusatzprüfungs-Simulator</h2>
+                <select id="sim-subject" onchange="simulateOralExam()" style="margin-bottom: 15px; width: 100%;"></select>
+                <div class="slider-container">
+                    <span style="font-weight: bold;">Wunschnote:</span>
+                    <input type="range" id="sim-target-slider" min="1.0" max="4.0" step="0.1" value="1.5" oninput="syncSlider()">
+                    <div class="target-val" id="sim-target-display">1.5</div>
+                </div>
+                <div id="sim-result" style="padding: 12px; background: var(--surface); border-radius: 6px; font-size: 0.9rem; border: 1px solid var(--border);">Bitte Fach wählen.</div>
+            </div>
+
+            <div class="card">
+                <h2>⚠️ Prüfungs-Status</h2>
+                <ul class="validation-list" id="validation-rules"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script>
+        const defaultSubjects = [
+            { name: 'Deutsch', type: 'LF', grades: [12,13,12,13], counted: [true,true,true,true] },
+            { name: 'Mathematik', type: 'LF', grades: [9,10,9,12], counted: [true,true,true,true] },
+            { name: 'Englisch', type: 'LF', grades: [10,8,10,11], counted: [true,true,true,true] },
+            { name: 'Biologie', type: 'BF', grades: [12,11,13,12], counted: [true,true,true,true] },
+            { name: 'Geschichte', type: 'BF', grades: [12,13,11,11], counted: [true,true,true,true] },
+            { name: 'Gemeinschaftskunde', type: 'BF', grades: [11,13,12,10], counted: [true,true,true,true] },
+            { name: 'Religion', type: 'BF', grades: [12,12,12,11], counted: [true,true,true,true] },
+            { name: 'Sport', type: 'BF', grades: [10,10,10,10], counted: [false,false,true,false] }, 
+            { name: 'Physik', type: 'BF', grades: [11,11,11,11], counted: [true,false,false,false] },
+            { name: 'Chemie', type: 'BF', grades: [15,15,13,13], counted: [true,true,true,true] },
+            { name: 'Bildende Kunst', type: 'BF', grades: [11,11,10,10], counted: [true,false,true,false] }
+        ];
+
+        const defaultExams = [
+            { name: 'Deutsch', type: 'schriftlich', grade: 10, oralGrade: '' },
+            { name: 'Mathematik', type: 'schriftlich', grade: 12, oralGrade: '' },
+            { name: 'Englisch', type: 'schriftlich', grade: 9, oralGrade: '' },
+            { name: 'Biologie', type: 'mündlich', grade: 15, oralGrade: '' },
+            { name: 'Geschichte', type: 'mündlich', grade: 15, oralGrade: '' }
+        ];
+
+        let studentData = { name: '', dob: '', pob: '', city: '', school: '' };
+        const STORAGE_PREFIX = 'abi_v12_'; 
+        let subjects = [], exams = [];
+        let currentBlock1 = 0;
+        let isValid = false;
+
+        function toggleTheme() {
+            const html = document.documentElement; const btn = document.getElementById('theme-btn');
+            if (html.getAttribute('data-theme') === 'light') { html.setAttribute('data-theme', 'dark'); btn.innerHTML = '☀️ Tagmodus'; localStorage.setItem('abi_theme', 'dark'); } 
+            else { html.setAttribute('data-theme', 'light'); btn.innerHTML = '🌙 Nachtmodus'; localStorage.setItem('abi_theme', 'light'); }
+        }
+
+        function init() {
+            if(localStorage.getItem('abi_theme') === 'dark') toggleTheme();
+            const autoSub = localStorage.getItem(STORAGE_PREFIX + 'subjects'); const autoEx = localStorage.getItem(STORAGE_PREFIX + 'exams'); const autoStud = localStorage.getItem(STORAGE_PREFIX + 'student');
+            if (autoSub && autoEx) { subjects = JSON.parse(autoSub); exams = JSON.parse(autoEx); if(autoStud) studentData = JSON.parse(autoStud); } 
+            else { subjects = JSON.parse(JSON.stringify(defaultSubjects)); exams = JSON.parse(JSON.stringify(defaultExams)); }
+            
+            document.getElementById('pd-name').value = studentData.name || ''; document.getElementById('pd-dob').value = studentData.dob || '';
+            document.getElementById('pd-pob').value = studentData.pob || ''; document.getElementById('pd-city').value = studentData.city || ''; document.getElementById('pd-school').value = studentData.school || '';
+            renderAll();
+        }
+
+        function exportData() {
+            const dataStr = JSON.stringify({ student: studentData, subjects: subjects, exams: exams });
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            let linkElement = document.createElement('a'); linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', `Abitur_${studentData.name ? studentData.name.replace(/\s+/g, '_') : 'Daten'}.json`); linkElement.click();
+            setTimeout(() => { if(confirm("Export erfolgreich! Daten jetzt aus diesem Browser löschen?")) clearAll(true); }, 500);
+        }
+
+        function importData(event) {
+            const file = event.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if(data.subjects && data.exams) {
+                        subjects = data.subjects; exams = data.exams;
+                        if(data.student) {
+                            studentData = data.student;
+                            document.getElementById('pd-name').value = studentData.name || ''; document.getElementById('pd-dob').value = studentData.dob || '';
+                            document.getElementById('pd-pob').value = studentData.pob || ''; document.getElementById('pd-city').value = studentData.city || ''; document.getElementById('pd-school').value = studentData.school || '';
+                        }
+                        saveData(); renderAll(); alert("Daten erfolgreich geladen!");
+                    }
+                } catch (err) { alert("Fehler beim Lesen."); }
+            };
+            reader.readAsText(file); event.target.value = '';
+        }
+
+        function clearAll(skipConfirm = false) {
+            if(!skipConfirm && !confirm("Alle Eingaben komplett löschen?")) return;
+            subjects = []; exams = Array(5).fill().map((_, i) => ({ name: '', type: i < 3 ? 'schriftlich' : 'mündlich', grade: '', oralGrade: '' }));
+            document.querySelectorAll('.personal-grid input').forEach(input => input.value = ''); saveData(); renderAll();
+        }
+
+        function saveData() {
+            studentData = { name: document.getElementById('pd-name').value, dob: document.getElementById('pd-dob').value, pob: document.getElementById('pd-pob').value, city: document.getElementById('pd-city').value, school: document.getElementById('pd-school').value };
+            localStorage.setItem(STORAGE_PREFIX + 'subjects', JSON.stringify(subjects)); localStorage.setItem(STORAGE_PREFIX + 'exams', JSON.stringify(exams)); localStorage.setItem(STORAGE_PREFIX + 'student', JSON.stringify(studentData));
+        }
+
+        function renderAll() { renderSubjects(); renderExams(); calculate(); updateSimulatorDropdown(); }
+
+        function renderSubjects() {
+            const tbody = document.getElementById('body-block1'); tbody.innerHTML = '';
+            let lfCands = [];
+            subjects.forEach((s, i) => { if(s.type==='LF'){ let p=0; s.grades.forEach((g,j)=>{if(s.counted[j]&&g!=='')p+=g;}); lfCands.push({i:i, p:p}); } });
+            lfCands.sort((a,b)=>b.p-a.p); let bestTwo = lfCands.slice(0,2).map(l=>l.i);
+
+            subjects.forEach((sub, sIdx) => {
+                const tr = document.createElement('tr');
+                let badge = sub.type === 'LF' ? (bestTwo.includes(sIdx) ? '<div class="badge badge-2x">2x LF</div>' : '<div class="badge badge-1x">1x LF</div>') : '';
+                let html = `<td><input type="text" value="${sub.name}" onchange="updateSub(${sIdx}, 'name', this.value)" style="font-weight:bold; margin-bottom:4px;">
+                            <div style="display:flex; gap:5px; align-items:center;">
+                            <select onchange="updateSub(${sIdx}, 'type', this.value)" style="width:70px; padding:2px;"><option value="LF" ${sub.type==='LF'?'selected':''}>LF</option><option value="BF" ${sub.type==='BF'?'selected':''}>BF</option></select>
+                            ${badge}</div></td>`;
+                for(let i=0; i<4; i++) {
+                    const g = sub.grades[i] === '' ? '' : sub.grades[i]; const c = sub.counted[i] ? 'checked' : '';
+                    html += `<td><div class="grade-cell"><input type="number" min="0" max="15" value="${g}" onchange="updateGrade(${sIdx}, ${i}, this.value)">
+                             <input type="checkbox" ${c} onchange="updateCount(${sIdx}, ${i}, this.checked)"></div></td>`;
+                }
+                html += `<td><button class="btn-del" onclick="removeSub(${sIdx})">✖</button></td>`;
+                tr.innerHTML = html; tbody.appendChild(tr);
+            });
+        }
+
+        function renderExams() {
+            const tbody = document.getElementById('body-block2'); tbody.innerHTML = '';
+            exams.forEach((ex, idx) => {
+                const isSch = ex.type === 'schriftlich';
+                let fg = ex.grade !== '' ? parseInt(ex.grade) : 0;
+                if(isSch && ex.grade !== '' && ex.oralGrade !== '') fg = Math.round((ex.grade*2 + parseInt(ex.oralGrade))/3);
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td><input type="text" value="${ex.name}" onchange="updateExam(${idx}, 'name', this.value)" style="font-weight:bold;"></td>
+                    <td><select onchange="updateExam(${idx}, 'type', this.value)"><option value="schriftlich" ${isSch?'selected':''}>Schriftlich</option><option value="mündlich" ${!isSch?'selected':''}>Mündlich</option></select></td>
+                    <td><input type="number" min="0" max="15" value="${ex.grade===''?'':ex.grade}" onchange="updateExam(${idx}, 'grade', this.value)"></td>
+                    <td>${isSch ? `<input type="number" min="0" max="15" placeholder="Optional" value="${ex.oralGrade===''?'':ex.oralGrade}" onchange="updateExam(${idx}, 'oralGrade', this.value)">` : `<span style="font-size:0.8rem; color:var(--text-light)">-</span>`}</td>
+                    <td><b style="font-size:1.1rem; color:var(--primary);">${ex.grade!=='' ? fg*4 : 0}</b></td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateSub(i, f, v) { subjects[i][f] = v; saveData(); renderAll(); }
+        function updateGrade(s, h, v) { subjects[s].grades[h] = v===''? '':parseInt(v); if(v==='')subjects[s].counted[h]=false; saveData(); renderAll(); }
+        function updateCount(s, h, c) { subjects[s].counted[h] = c; saveData(); renderAll(); }
+        function updateExam(i, f, v) { exams[i][f] = (f==='grade'||f==='oralGrade')?(v===''? '':parseInt(v)):v; saveData(); renderAll(); }
+        function addSubject() { subjects.push({ name: '', type: 'BF', grades: ['','','',''], counted: [false,false,false,false] }); renderAll(); }
+        function removeSub(i) { subjects.splice(i, 1); saveData(); renderAll(); }
+
+        // --- CALCULATION ---
+        function calculate() {
+            let P=0, cCourses=0, ukLF=0, ukTot=0, has0=false, lfCands=[];
+            subjects.forEach(s => {
+                let isLF = s.type === 'LF'; let pLF = 0;
+                for(let i=0; i<4; i++) {
+                    const g = s.grades[i];
+                    if(s.counted[i] && g !== '') {
+                        cCourses++; P += g; if(isLF) pLF += g;
+                        if(g === 0) has0 = true; if(g < 5){ ukTot++; if(isLF) ukLF++; }
+                    }
+                }
+                if(isLF) lfCands.push(pLF);
+            });
+
+            lfCands.sort((a,b)=>b-a); if(lfCands.length>0) P+=lfCands[0]; if(lfCands.length>1) P+=lfCands[1];
+
+            let b1Tot = cCourses > 0 ? Math.round((P*40)/48) : 0; if (b1Tot > 600) b1Tot = 600;
+            currentBlock1 = b1Tot;
+
+            let pII=0, examUK=0, exam0=false, exDone=0, pII_raw=0, examUK_raw=0, exam0_raw=false;
+            exams.forEach(ex => {
+                if(ex.grade !== '') {
+                    exDone++;
+                    let fg = ex.grade; if(ex.type==='schriftlich' && ex.oralGrade!=='') fg = Math.round((ex.grade*2 + ex.oralGrade)/3);
+                    pII += (fg*4); if(fg===0) exam0=true; if(fg<5) examUK++;
+                    let raw = ex.grade; pII_raw += (raw*4); if(raw===0) exam0_raw=true; if(raw<5) examUK_raw++;
+                }
+            });
+
+            let total = b1Tot + pII;
+            document.getElementById('course-counter').innerText = `${cCourses} / 40 Kurse`;
+            document.getElementById('res-b1').innerText = b1Tot; document.getElementById('res-b2').innerText = pII; document.getElementById('res-total').innerText = total;
+
+            const rUI = document.getElementById('validation-rules'); rUI.innerHTML = '';
+            const addR = (t, s) => rUI.innerHTML += `<li class="${s}">${s==='error'?'❌ ':s==='muss'?'⚠️ ':'✅ '}${t}</li>`;
+
+            addR(`Genau 40 Kurse eingebracht`, cCourses !== 40 ? 'error' : 'ok');
+            addR(`Max. 8 Unterkurse gesamt`, ukTot > 8 ? 'error' : 'ok');
+            addR(`Keine 0 Punkte in Kursen`, has0 ? 'error' : 'ok');
+            addR(`Block I: Mind. 200 Punkte`, b1Tot < 200 && cCourses === 40 ? 'error' : 'ok');
+
+            if(exDone === 5) {
+                let mRes = ""; if(exam0_raw) mRes="0 Punkte schriftl."; else if(examUK_raw>2) mRes=`Zu viele Unterkurse`; else if(pII_raw<100) mRes=`Zu wenig Punkte`;
+                if(mRes) { if(!exam0 && examUK<=2 && pII>=100) addR(`MUSS-Prüfung bestanden!`, 'ok'); else addR(`MUSS-PRÜFUNG NÖTIG: ${mRes}`, 'muss'); } 
+                else addR(`Keine MUSS-Prüfung nötig.`, 'ok');
+            }
+
+            isValid = (total >= 300 && cCourses === 40 && exDone === 5 && !exam0 && examUK <= 2 && pII >= 100 && ukTot <= 8 && ukLF <= 3 && !has0);
+            
+            let grade = "---"; const gEl = document.getElementById('final-grade');
+            if(isValid) {
+                grade = (Math.floor(Math.max(1.0, (17/3)-(total/180)) * 10) / 10).toFixed(1);
+                gEl.style.color = grade <= 2.5 ? "var(--success-text)" : grade <= 3.7 ? "var(--warning-text)" : "var(--danger-text)";
+            } else gEl.style.color = "var(--danger-text)";
+            gEl.innerText = grade;
+            
+            simulateOralExam();
+        }
+
+        // --- SLIDER & SIMULATOR ---
+        function syncSlider() {
+            const val = document.getElementById('sim-target-slider').value;
+            document.getElementById('sim-target-display').innerText = val;
+            simulateOralExam();
+        }
+
+        function updateSimulatorDropdown() {
+            const select = document.getElementById('sim-subject'); const currentVal = select.value;
+            select.innerHTML = '<option value="">-- Fach wählen --</option>';
+            exams.forEach((ex, idx) => { if(ex.type === 'schriftlich' && ex.name) select.innerHTML += `<option value="${idx}">${ex.name} (Bisher: ${ex.grade||'?'} NP)</option>`; });
+            if(currentVal) select.value = currentVal;
+        }
+
+        function simulateOralExam() {
+            const resDiv = document.getElementById('sim-result'); const subjIdx = document.getElementById('sim-subject').value;
+            const target = parseFloat(document.getElementById('sim-target-slider').value);
+
+            if(subjIdx === "") { resDiv.innerHTML = "Bitte wähle oben ein Fach."; return; }
+            const simExam = exams[subjIdx]; if(simExam.grade === '') { resDiv.innerHTML = "Trage erst die schriftliche Note ein."; return; }
+
+            let reqTotal = target <= 1.0 ? 823 : 300;
+            if(target > 1.0) { for (let p=300; p<=900; p++) if (Math.floor(((17/3)-(p/180))*10)/10 <= target) { reqTotal = p; break; } }
+
+            let base_pII = 0;
+            exams.forEach((ex, idx) => {
+                if(idx != subjIdx && ex.grade !== '') {
+                    let fGrade = ex.grade; if(ex.type === 'schriftlich' && ex.oralGrade !== '') fGrade = Math.round((ex.grade * 2 + ex.oralGrade) / 3);
+                    base_pII += (fGrade * 4);
+                }
+            });
+
+            let needed_m = -1;
+            for(let m = 0; m <= 15; m++) {
+                let finalSbjGrade = Math.round((simExam.grade * 2 + m) / 3);
+                if((currentBlock1 + base_pII + (finalSbjGrade * 4)) >= reqTotal) { needed_m = m; break; }
+            }
+
+            if(needed_m === -1) resDiv.innerHTML = `<span style="color:var(--danger-text);">Schnitt ${target.toFixed(1)} ist über dieses Fach <b>nicht erreichbar</b>.</span>`;
+            else if(needed_m === 0) resDiv.innerHTML = `<span style="color:var(--success-text);">Note ${target.toFixed(1)} ist <b>schon sicher</b> (selbst bei 0 NP mündlich).</span>`;
+            else resDiv.innerHTML = `Du brauchst mind. <b>${needed_m} Punkte</b> in der mündlichen Zusatzprüfung.<br><span style="font-size:0.8rem; color:var(--text-light);">(Note = (${simExam.grade}×2 + ${needed_m})÷3 = ${Math.round((simExam.grade*2+needed_m)/3)} NP)</span>`;
+        }
+
+        // --- PERFECT PDF GENERATION ---
+        function numToWords(numStr) {
+            const words = {'0':'null', '1':'eins', '2':'zwei', '3':'drei', '4':'vier', '5':'fünf', '6':'sechs', '7':'sieben', '8':'acht', '9':'neun'};
+            if(numStr === "---") return "---"; let parts = numStr.split('.');
+            if(parts.length === 2) return `${words[parts[0]]} Komma ${words[parts[1]]}`; return numStr;
+        }
+
+        // Hilfsfunktion: Lädt das Wappen-Bild dynamisch von Wikipedia für den PDF Generator
+        function getBase64ImageFromURL(url) {
+            return new Promise((resolve, reject) => {
+                var img = new Image();
+                img.setAttribute("crossOrigin", "anonymous");
+                img.onload = () => {
+                    var canvas = document.createElement("canvas");
+                    canvas.width = img.width; canvas.height = img.height;
+                    var ctx = canvas.getContext("2d"); ctx.drawImage(img, 0, 0);
+                    resolve(canvas.toDataURL("image/png"));
+                };
+                img.onerror = error => reject(error);
+                img.src = url;
+            });
+        }
+
+        async function generatePerfectPDF() {
+            if(!isValid && !confirm("Achtung: Dein Abitur ist laut den aktuellen Eingaben nicht bestanden. Trotzdem drucken?")) return;
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+            doc.setFont("times", "normal");
+            
+            // --- PAGE 1: DECKBLATT ---
+            // Versuche, das offizielle Landeswappen von Wikipedia in hoher Qualität zu laden
+            try {
+                let wappenBase64 = await getBase64ImageFromURL("https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Wappen_Baden-W%C3%BCrttemberg_%28gross%29.svg/512px-Wappen_Baden-W%C3%BCrttemberg_%28gross%29.svg.png");
+                doc.addImage(wappenBase64, 'PNG', 80, 20, 50, 50);
+            } catch (e) {
+                // Fallback, falls Internet blockiert ist: Einfacher Text-Block
+                doc.setFont("times", "bold"); doc.setFontSize(14);
+                doc.text("[ Landeswappen Baden-Württemberg ]", 105, 45, {align: "center"});
+            }
+            
+            doc.setFontSize(22); doc.setFont("times", "normal");
+            doc.text("Baden-Württemberg", 105, 85, { align: "center" });
+            
+            doc.setFontSize(14);
+            doc.text(studentData.school || "Schulname", 105, 100, { align: "center" });
+
+            doc.setFont("times", "bold"); doc.setFontSize(26);
+            doc.text("Zeugnis", 105, 130, { align: "center" });
+            
+            doc.setFontSize(16);
+            doc.text("der Allgemeinen Hochschulreife", 105, 142, { align: "center" });
+
+            doc.setFont("times", "normal"); doc.setFontSize(12);
+            let startY = 170; let labelX = 25; let lineX = 65;
+            
+            doc.text("Vor-", labelX, startY); doc.text("und Zuname", labelX, startY + 6);
+            doc.line(lineX, startY + 6, 185, startY + 6); doc.text(studentData.name || "", 125, startY + 4, { align: "center" });
+
+            doc.text("geboren am", labelX, startY + 20);
+            doc.line(lineX, startY + 21, 185, startY + 21); doc.text(studentData.dob || "", 125, startY + 19, { align: "center" });
+
+            doc.text("in", labelX, startY + 35);
+            doc.line(lineX, startY + 36, 185, startY + 36); doc.text(studentData.pob || "", 125, startY + 34, { align: "center" });
+
+            doc.text("hat die Abiturprüfung bestanden und damit die Berechtigung zum Studium an einer Hoch-", 20, 230);
+            doc.text("schule in der Bundesrepublik Deutschland erworben.", 20, 236);
+
+            doc.setFontSize(8);
+            let legalText = "Dem Zeugnis liegen folgende Vereinbarungen und Verordnungen zugrunde:\n" +
+                "1. die \"Vereinbarung zur Gestaltung der gymnasialen Oberstufe und der Abiturprüfung\" (Beschluss der Kultusministerkonferenz vom 07. Juli 1972 in der jeweils geltenden Fassung);\n" +
+                "2. die Bildungsstandards für die Allgemeine Hochschulreife oder die Vereinbarungen über die Einheitlichen Prüfungsanforderungen in der Abiturprüfung;\n" +
+                "3. die Verordnung des Kultusministeriums über die Jahrgangsstufen sowie über die Abiturprüfung an Gymnasien der Normalform und Gymnasien in Aufbauform\n   (Abiturverordnung Gymnasien der Normalform – AGVO) in der jeweils geltenden Fassung.";
+            doc.text(legalText, 20, 260, { maxWidth: 170, lineHeightFactor: 1.5 });
+            
+            doc.setTextColor(150, 150, 150);
+            doc.text("Fiktive Zeugnisprognose – Kein amtliches Dokument", 105, 290, { align: "center" });
+            doc.setTextColor(0, 0, 0);
+
+            // --- PAGE 2: NOTEN ---
+            doc.addPage();
+            
+            doc.setFont("times", "bold"); doc.setFontSize(14);
+            doc.rect(15, 15, 180, 8); doc.text("ZEUGNIS DER ALLGEMEINEN HOCHSCHULREIFE", 105, 21, { align: "center" });
+
+            doc.setFont("times", "normal"); doc.setFontSize(10);
+            doc.rect(15, 23, 180, 8);
+            let studentString = [studentData.name, studentData.dob ? '*'+studentData.dob : '', studentData.pob ? 'in '+studentData.pob : '', studentData.school].filter(Boolean).join(', ');
+            doc.text(studentString, 17, 28.5);
+
+            // Block 1 Data
+            let block1Data = [];
+            subjects.forEach(s => {
+                let name = s.type === 'LF' ? s.name + ' 1)' : s.name;
+                let sum = 0, cCount = 0, row = [name];
+                for(let i=0; i<4; i++) {
+                    let g = s.grades[i]; let d = g !== '' ? g : '';
+                    if(g !== '') { sum+=g; cCount++; if(!s.counted[i]) d = `(${d})`; }
+                    row.push(d);
+                }
+                row.push(cCount > 0 ? Math.round(sum/cCount).toString() : '');
+                block1Data.push(row);
+            });
+            while(block1Data.length < 16) block1Data.push(['', '', '', '', '', '']); // Fill rows
+
+            // Block 2 Data
+            let block2Data = [];
+            exams.forEach(ex => {
+                let isSch = ex.type === 'schriftlich';
+                let sG = isSch ? (ex.grade !== '' ? ex.grade : '') : '';
+                let mG = isSch ? (ex.oralGrade !== '' ? ex.oralGrade : '') : (ex.grade !== '' ? ex.grade : '');
+                let fg = ''; if(ex.grade !== '') { fg = parseInt(ex.grade); if(isSch && ex.oralGrade !== '') fg = Math.round((ex.grade*2 + parseInt(ex.oralGrade))/3); }
+                block2Data.push([ex.name||'', sG, mG, fg.toString()]);
+            });
+
+            // Draw Block 1 (Left Table)
+            doc.setFont("times", "bold"); doc.setFontSize(10);
+            doc.text("I. Leistungen in den Jahrgangsstufen 1 und 2", 15, 40);
+            doc.autoTable({
+                startY: 42,
+                margin: { left: 15, right: 105 }, // Width = 90
+                theme: 'grid',
+                styles: { font: "times", fontSize: 8, lineColor: 0, textColor: 0, halign: 'center', cellPadding: 1 },
+                headStyles: { fillColor: 255, textColor: 0, fontStyle: 'normal' },
+                columnStyles: { 0: { halign: 'left', cellWidth: 35 } },
+                head: [
+                    [{ content: 'Fach 1)', rowSpan: 2 }, { content: 'Jahrgangsstufe 1', colSpan: 2 }, { content: 'Jahrgangsstufe 2', colSpan: 2 }, { content: 'Note 3)', rowSpan: 2 }],
+                    ['1. Halbj.', '2. Halbj.', '1. Halbj.', '2. Halbj.']
+                ],
+                body: block1Data
+            });
+
+            doc.setFontSize(6); doc.setFont("times", "normal");
+            let fnY = doc.lastAutoTable.finalY + 4;
+            doc.text("1) Die mit 1) gekennzeichneten Fächer im Block I sind Leistungsfächer. Zwei davon werden im Block I doppelt gewichtet.", 15, fnY);
+            doc.text("2) Notenpunkte von Kursen, die nicht angerechnet werden, sind in Klammern gesetzt.", 15, fnY + 3);
+            doc.text("3) Bei der Berechnung der Note sind alle Kurse einbezogen.", 15, fnY + 6);
+
+            // Draw Block 2 (Right Table)
+            doc.setFont("times", "bold"); doc.setFontSize(10);
+            doc.text("II. Leistungen in der Abiturprüfung", 110, 40);
+            doc.autoTable({
+                startY: 42,
+                margin: { left: 110, right: 15 }, // Width = 85
+                theme: 'grid',
+                styles: { font: "times", fontSize: 8, lineColor: 0, textColor: 0, halign: 'center', cellPadding: 1.5 },
+                headStyles: { fillColor: 255, textColor: 0, fontStyle: 'normal' },
+                columnStyles: { 0: { halign: 'left', cellWidth: 35 } },
+                head: [
+                    [{ content: 'Prüfungsfach', rowSpan: 2 }, { content: 'Punktzahlen', colSpan: 2 }, { content: 'Note', rowSpan: 2 }],
+                    ['schriftl.', 'mündl.']
+                ],
+                body: block2Data
+            });
+
+            // Draw Block 3 (Gesamtqualifikation)
+            let b3Y = doc.lastAutoTable.finalY + 8;
+            doc.setFont("times", "bold"); doc.setFontSize(10);
+            doc.text("III. Gesamtqualifikation und Durchschnittsnote", 110, b3Y);
+            
+            b3Y += 2;
+            doc.rect(110, b3Y, 85, 45); // Outer Box Block 3
+            
+            doc.setFont("times", "bold"); doc.setFontSize(8); doc.text("Punktsumme aus Kursen", 112, b3Y + 5);
+            doc.setFont("times", "normal"); doc.setFontSize(7); doc.text("(mindestens 200, höchstens 600 Punkte)", 112, b3Y + 8);
+            doc.rect(178, b3Y + 3, 14, 6); doc.setFontSize(9); doc.text(document.getElementById('res-b1').innerText, 185, b3Y + 7.5, {align: "center"});
+            doc.line(110, b3Y + 11, 195, b3Y + 11);
+
+            doc.setFont("times", "bold"); doc.setFontSize(8); doc.text("Punktsumme aus den Prüfungsfächern", 112, b3Y + 15);
+            doc.setFont("times", "normal"); doc.setFontSize(7); doc.text("(mindestens 100, höchstens 300 Punkte)", 112, b3Y + 18);
+            doc.rect(178, b3Y + 13, 14, 6); doc.setFontSize(9); doc.text(document.getElementById('res-b2').innerText, 185, b3Y + 17.5, {align: "center"});
+            doc.line(110, b3Y + 21, 195, b3Y + 21);
+
+            doc.setFont("times", "bold"); doc.setFontSize(10); doc.text("Gesamtpunktzahl", 112, b3Y + 27);
+            doc.rect(175, b3Y + 23, 17, 7); doc.setFontSize(11); doc.text(document.getElementById('res-total').innerText, 183.5, b3Y + 28, {align: "center"});
+            doc.line(110, b3Y + 32, 195, b3Y + 32);
+
+            doc.setFont("times", "bold"); doc.setFontSize(9); doc.text("Durchschnittsnote", 112, b3Y + 37);
+            doc.setFont("times", "normal"); doc.setFontSize(7); doc.text("in Ziffern / in Buchstaben", 112, b3Y + 41);
+            
+            let finalGrade = document.getElementById('final-grade').innerText;
+            doc.rect(155, b3Y + 34, 37, 9);
+            doc.setFont("times", "bold"); doc.setFontSize(12); doc.text(finalGrade, 173.5, b3Y + 38.5, {align: "center"});
+            doc.setFont("times", "normal"); doc.setFontSize(8); doc.text(numToWords(finalGrade), 173.5, b3Y + 41.5, {align: "center"});
+
+            // Signatures
+            let signY = 245;
+            doc.setFont("times", "normal"); doc.setFontSize(10);
+            
+            let printCity = studentData.city ? studentData.city.trim() : "Musterstadt";
+            let today = new Date().toLocaleDateString('de-DE');
+            doc.text(`${printCity}, den ${today}`, 15, signY);
+            
+            doc.line(15, signY + 15, 80, signY + 15);
+            doc.setFontSize(8); doc.text("Vorsitzende/r des Prüfungsausschusses", 47.5, signY + 19, {align: "center"});
+            
+            doc.line(15, signY + 35, 80, signY + 35);
+            doc.text("Schulleiter/in", 47.5, signY + 39, {align: "center"});
+
+            doc.setLineDashPattern([1, 1], 0);
+            doc.circle(150, signY + 15, 18);
+            doc.text("(Dienstsiegel", 150, signY + 14, {align: "center"});
+            doc.text("der Schule)", 150, signY + 18, {align: "center"});
+            
+            // Footer warning
+            doc.setLineDashPattern([], 0);
+            doc.setTextColor(150, 150, 150);
+            doc.text("Fiktive Zeugnisprognose – Kein amtliches Dokument", 105, 290, { align: "center" });
+
+            doc.save(`Abitur_Prognose_${studentData.name ? studentData.name.replace(/\s+/g, '_') : 'BaWue'}.pdf`);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
